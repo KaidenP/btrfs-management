@@ -8,25 +8,6 @@ set -euo pipefail
 
 readonly SCRIPT_NAME="$(basename "$0")"
 
-log() {
-    echo "[INFO] $*"
-}
-
-warn() {
-    echo "[WARN] $*" >&2
-}
-
-error() {
-    echo "[ERROR] $*" >&2
-    exit 1
-}
-
-require_root() {
-    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-        error "This installer must be run as root."
-    fi
-}
-
 resolve_script_dir() {
     local src
     src="${BASH_SOURCE[0]}"
@@ -38,6 +19,9 @@ resolve_script_dir() {
     done
     cd -P "$(dirname "$src")" && pwd
 }
+
+readonly SCRIPT_DIR="$(resolve_script_dir)"
+source "$SCRIPT_DIR/lib/lib.sh"
 
 safe_copy_project() {
     local source_dir="$1"
@@ -182,37 +166,6 @@ make_sh_executable() {
                 chmod +x "$file"
             fi
         done
-}
-
-PACKAGES_UBUNTU="btrfs-progs msmtp"
-ensure_packages() {
-    # Detect distribution
-    local distro
-    if [ -r /etc/os-release ]; then
-        distro=$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
-    else
-        warn "Cannot detect Linux distribution. Future commands may fail."
-        return 1
-    fi
-
-    # If Ubuntu, install packages; else warn
-    if [ "$distro" = "ubuntu" ]; then
-        # Collect missing packages
-        local missing=()
-        for pkg in $PACKAGES_UBUNTU; do
-            if ! dpkg -s "$pkg" &>/dev/null; then
-                missing+=("$pkg")
-            fi
-        done
-
-        # Install missing packages if any
-        if [ ${#missing[@]} -gt 0 ]; then
-            sudo apt-get update
-            sudo apt-get install -y "${missing[@]}"
-        fi
-    else
-        warn "Distribution '$distro' is not supported. Future commands may fail."
-    fi
 }
 
 main() {

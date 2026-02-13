@@ -37,8 +37,8 @@ sudo ./install.sh
 
 ### Subvolume & Snapshot Management
 
-- [ ] Creation of managed subvolumes  
-- [ ] Creation of managed subvolumes with a parent of an existing subvolume via rw snapshot  
+- [x] Creation of managed subvolumes  
+- [x] Creation of managed subvolumes with a parent of an existing subvolume via rw snapshot  
 - [ ] Create read-only snapshots  
 - [ ] Incremental snapshot backups  
 - [ ] Snapshot retention policies  

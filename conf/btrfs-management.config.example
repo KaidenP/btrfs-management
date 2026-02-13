@@ -1,0 +1,3 @@
+# Backup Script
+# Will be called like $BACKUP_SCRIPT <create|delete> <volume.config> <file>
+BACKUP_SCRIPT=
