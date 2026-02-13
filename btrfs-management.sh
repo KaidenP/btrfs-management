@@ -108,7 +108,7 @@ case "$COMMAND" in
         ;;
 
     *)
-        CMD_SCRIPT="$SCRIPT_DIR/lib/command/$COMMAND.sh"
+        CMD_SCRIPT="$SCRIPT_DIR/src/command/$COMMAND.sh"
         if [ ! -x "$CMD_SCRIPT" ]; then
             echo "Error: Command script not found or not executable: $CMD_SCRIPT" >&2
             exit 1
