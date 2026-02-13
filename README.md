@@ -21,7 +21,19 @@ The project is designed to support:
 
 ---
 
-## Planned Features
+## Installation
+
+Clone the `main` branch and run `install.sh` as root:
+
+```bash
+git clone -b main https://github.com/KaidenP/btrfs-management.git
+cd btrfs-management
+sudo ./install.sh
+```
+
+---
+
+## Features
 
 ### Subvolume & Snapshot Management
 

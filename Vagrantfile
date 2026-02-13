@@ -17,8 +17,8 @@ Vagrant.configure("2") do |config|
   # Use PowerShell as required by Hyper-V
   config.vm.guest = :ubuntu
   config.vm.communicator = "ssh"
-  # config.vm.provision "file", source: ".", destination: "~/btrfs-management"
-  config.vm.provision "shell", inline: <<-SHELL
-    bash /vagrant/install.sh
-  SHELL
+
+  # config.vm.provision "shell", inline: <<-SHELL
+  #   bash /vagrant/install.sh
+  # SHELL
 end

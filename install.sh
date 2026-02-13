@@ -58,11 +58,9 @@ safe_copy_project() {
     mkdir -p "$dest_dir"
 
     log "Synchronizing project files from $source_dir to $dest_dir"
-    {
-        git -C "$source_dir" ls-files -z --cached --others --exclude-standard
-        echo -n ".git/"
-    } | \
-        rsync -a --delete --files-from=- --from0 "$source_dir/" "$dest_dir/"
+    rsync -a --delete \
+        --exclude='.vagrant/' \
+        "$source_dir/" "$dest_dir/"
 }
 
 ensure_symlink() {
@@ -92,37 +90,69 @@ ensure_symlink() {
 }
 
 ensure_config() {
+    shopt -s nullglob
+
     local install_dir="$1"
     local etc_dir="/etc/btrfs-management"
-    local config_example="$install_dir/conf/btrfs-management.config.example"
-    local config_file="$etc_dir/btrfs-management.config"
-
-    mkdir -p "$etc_dir"
-
-    if [[ ! -f "$config_example" ]]; then
-        error "Missing example config: $config_example"
-    fi
-
-    if [[ ! -f "$config_file" ]]; then
-        cp "$config_example" "$config_file"
-        log "Created config: $config_file"
-    else
-        warn "Config already exists and was not modified: $config_file"
-        warn "The example config may contain new options. Please review:"
-        warn "  $config_example"
-    fi
-
+    
     mkdir -p "$etc_dir/volumes.d"
 
-    local volume_example="$install_dir/conf/volume.config.example"
-    local volume_target="$etc_dir/volumes.d/volume.config.example"
+    # -----------------------------
+    # Main configs
+    # -----------------------------
+    local configs_candidates=("$install_dir"/conf/*.config)
+    local example_configs_candidates=("$install_dir"/conf/*.config.example)
 
-    if [[ ! -f "$volume_example" ]]; then
-        error "Missing example volume config: $volume_example"
+    # Install real configs (overwrite)
+    if ((${#configs_candidates[@]} > 0)); then
+        for cfg in "${configs_candidates[@]}"; do
+            local target="$etc_dir/$(basename "$cfg")"
+            cp -f "$cfg" "$target"
+            log "Installed config (overwritten if existed): $target"
+        done
     fi
 
-    cp "$volume_example" "$volume_target"
-    log "Installed example volume config (overwritten if existed): $volume_target"
+    # Install example configs only if matching real config does not exist
+    if ((${#example_configs_candidates[@]} > 0)); then
+        for example in "${example_configs_candidates[@]}"; do
+            local target="$etc_dir/$(basename "$example" .example)"
+
+            # Only install example if real config not installed
+            if [[ ! -f "$target" ]]; then
+                cp "$example" "$target"
+                log "Installed example config: $target"
+            fi
+        done
+    fi
+
+    # Enforce secure permissions on smtp config if it exists
+    local smtp_target="$etc_dir/smtp.config"
+    if [[ -f "$smtp_target" ]]; then
+        chown root:root "$smtp_target"
+        chmod 0600 "$smtp_target"
+    fi
+
+    # -----------------------------
+    # volumes.d configs
+    # -----------------------------
+    local volume_configs=("$install_dir"/conf/volumes.d/*.config)
+    local volume_example="$install_dir/conf/volumes.d/volume.config.example"
+    local volume_example_target="$etc_dir/volumes.d/volume.config.example"
+
+    if ((${#volume_configs[@]} > 0)); then
+        for cfg in "${volume_configs[@]}"; do
+            local target="$etc_dir/volumes.d/$(basename "$cfg")"
+            cp -f "$cfg" "$target"
+            log "Installed volume config (overwritten if existed): $target"
+        done
+    fi
+
+    if [[ -f "$volume_example" && ! -f "$volume_example_target" ]]; then
+        cp "$volume_example" "$volume_example_target"
+        log "Installed example volume config: $volume_example_target"
+    fi
+
+    shopt -u nullglob
 }
 
 ensure_log_dir() {
@@ -154,8 +184,40 @@ make_sh_executable() {
         done
 }
 
+PACKAGES_UBUNTU="btrfs-progs msmtp"
+ensure_packages() {
+    # Detect distribution
+    local distro
+    if [ -r /etc/os-release ]; then
+        distro=$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+    else
+        warn "Cannot detect Linux distribution. Future commands may fail."
+        return 1
+    fi
+
+    # If Ubuntu, install packages; else warn
+    if [ "$distro" = "ubuntu" ]; then
+        # Collect missing packages
+        local missing=()
+        for pkg in $PACKAGES_UBUNTU; do
+            if ! dpkg -s "$pkg" &>/dev/null; then
+                missing+=("$pkg")
+            fi
+        done
+
+        # Install missing packages if any
+        if [ ${#missing[@]} -gt 0 ]; then
+            sudo apt-get update
+            sudo apt-get install -y "${missing[@]}"
+        fi
+    else
+        warn "Distribution '$distro' is not supported. Future commands may fail."
+    fi
+}
+
 main() {
     require_root
+    ensure_packages
 
     local script_dir
     script_dir="$(resolve_script_dir)"
