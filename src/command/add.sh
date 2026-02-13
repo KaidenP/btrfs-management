@@ -8,7 +8,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 
 # Source library functions
-source ./lib/lib.sh
+source ./src/lib.sh
 
 # Ensure script is run as root
 require_root
