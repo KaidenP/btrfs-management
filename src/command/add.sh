@@ -46,7 +46,7 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
-TARGET="$1"
+TARGET="${1%%/}"
 SOURCE="${2:-}"
 
 # Handle special commands
@@ -85,7 +85,7 @@ if [[ -e "$TARGET" ]]; then
         else
             log_info "$CURRENT already exists, skipping move"
         fi
-    elif [[ -d "$CURRENT" && btrfs subvolume show "$CURRENT" &>/dev/null ]]; then
+    elif [[ -d "$CURRENT" ]] && btrfs subvolume show "$CURRENT" &>/dev/null; then
         log_info "$CURRENT already exists, proceeding"
     else
         log_err "$TARGET exists but is not a valid Btrfs subvolume or does not contain /current"
@@ -104,7 +104,7 @@ if [[ -n "$SOURCE" ]]; then
 
     if btrfs subvolume show "$SOURCE" &>/dev/null; then
         SNAP_SRC="$SOURCE"
-    elif [[ -d "$SOURCE/current" && btrfs subvolume show "$SOURCE/current" &>/dev/null ]]; then
+    elif [[ -d "$SOURCE/current" ]] && btrfs subvolume show "$SOURCE/current" &>/dev/null; then
         SNAP_SRC="$SOURCE/current"
     else
         log_err "Source $SOURCE is not a valid Btrfs subvolume or does not contain /current"
@@ -133,11 +133,11 @@ fi
 # Copy volume config
 # -----------------------------------------------------------------------------
 VOLUME_DIR="/etc/btrfs-management/volumes.d"
-VOLUME_FILE="$VOLUME_DIR/$(basename "$TARGET")"
+VOLUME_FILE="$VOLUME_DIR/$(basename "$TARGET").config"
 
 if [[ ! -e "$VOLUME_FILE" ]]; then
     log_info "Creating volume config $VOLUME_FILE"
-    cp "$VOLUME_DIR/volume.example" "$VOLUME_FILE"
+    cp "$VOLUME_DIR/volume.config.example" "$VOLUME_FILE"
     # Replace VOLUME_PATH line
     sed -i "s|^VOLUME_PATH=.*|VOLUME_PATH=$TARGET|" "$VOLUME_FILE"
 else
