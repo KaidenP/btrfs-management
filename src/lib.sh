@@ -1,22 +1,20 @@
-log() {
-    echo "[INFO] $*"
-}
-
-warn() {
-    echo "[WARN] $*" >&2
-}
-
-error() {
-    echo "[ERROR] $*" >&2
-    exit 1
-}
-
 require_root() {
     if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
         error "This installer must be run as root."
     fi
 }
 
+add_exit_trap() {
+    local new="$1"
+    local existing
+    existing="$(trap -p EXIT | awk -F"'" '{print $2}')"
+
+    if [[ -n "$existing" ]]; then
+        trap "$existing; $new" EXIT
+    else
+        trap "$new" EXIT
+    fi
+}
 
 PACKAGES_UBUNTU="btrfs-progs msmtp"
 ensure_packages() {
@@ -41,8 +39,9 @@ ensure_packages() {
 
         # Install missing packages if any
         if [ ${#missing[@]} -gt 0 ]; then
-            sudo apt-get update
-            sudo apt-get install -y "${missing[@]}"
+            export DEBIAN_FRONTEND=noninteractive 
+            apt-get update
+            apt-get install -y "${missing[@]}"
         fi
     else
         warn "Distribution '$distro' is not supported. Future commands may fail."
@@ -65,18 +64,6 @@ load_env_file() {
         echo "load_env_file: file not found: $file" >&2
         return 1
     fi
-
-    # -----------------------------
-    # Cleanup from previous run
-    # -----------------------------
-    if ((${#__LOADED_ENV_VARS[@]} > 0)); then
-        for var in "${__LOADED_ENV_VARS[@]}"; do
-            unset "$var"
-        done
-    fi
-
-    # Reset tracking array
-    __LOADED_ENV_VARS=()
 
     # -----------------------------
     # Parse file safely
@@ -116,6 +103,15 @@ load_env_file() {
     done < "$file"
 }
 
+reset_env() {
+    if ((${#__LOADED_ENV_VARS[@]} > 0)); then
+        for var in "${__LOADED_ENV_VARS[@]}"; do
+            unset "$var"
+        done
+    fi
+    __LOADED_ENV_VARS=()
+}
+
 send_mail() {
     set -euo pipefail
     local template="$1"
@@ -138,7 +134,7 @@ send_mail() {
     local tmp_msmtp
     tmp_msmtp=$(mktemp)
     chmod 600 "$tmp_msmtp"
-    trap "rm -f '$tmp_msmtp'" EXIT
+    add_exit_trap "rm -f '$tmp_msmtp'"
 
     cat >"$tmp_msmtp" <<EOF
 defaults
@@ -166,3 +162,5 @@ EOF
         fi
     } | msmtp -C "$tmp_msmtp" -t
 }
+
+source ./src/lib/logging.sh

@@ -20,8 +20,10 @@ resolve_script_dir() {
     cd -P "$(dirname "$src")" && pwd
 }
 
+LOG_FILE="install.log"
 readonly SCRIPT_DIR="$(resolve_script_dir)"
-source "$SCRIPT_DIR/lib/lib.sh"
+cd "$SCRIPT_DIR"
+source "$SCRIPT_DIR/src/lib.sh"
 
 safe_copy_project() {
     local source_dir="$1"
@@ -34,14 +36,14 @@ safe_copy_project() {
     dst_abs=$(realpath "$dest_dir")
 
     if [ "$src_abs" = "$dst_abs" ]; then
-        log "Source and destination are the same ($src_abs), skipping copy"
+        log_info "Source and destination are the same ($src_abs), skipping copy"
         return 0
     fi
 
     rm -rf "$dest_dir"
     mkdir -p "$dest_dir"
 
-    log "Synchronizing project files from $source_dir to $dest_dir"
+    log_info "Synchronizing project files from $source_dir to $dest_dir"
     rsync -a --delete \
         --exclude='.vagrant/' \
         "$source_dir/" "$dest_dir/"
@@ -59,10 +61,10 @@ ensure_symlink() {
         local current
         current="$(readlink -f "$link_path")"
         if [[ "$current" == "$target" ]]; then
-            log "Symlink already correct: $link_path"
+            log_info "Symlink already correct: $link_path"
             return
         else
-            log "Updating existing symlink: $link_path"
+            log_info "Updating existing symlink: $link_path"
             rm -f "$link_path"
         fi
     elif [[ -e "$link_path" ]]; then
@@ -70,7 +72,7 @@ ensure_symlink() {
     fi
 
     ln -s "$target" "$link_path"
-    log "Created symlink: $link_path -> $target"
+    log_info "Created symlink: $link_path -> $target"
 }
 
 ensure_config() {
@@ -92,7 +94,7 @@ ensure_config() {
         for cfg in "${configs_candidates[@]}"; do
             local target="$etc_dir/$(basename "$cfg")"
             cp -f "$cfg" "$target"
-            log "Installed config (overwritten if existed): $target"
+            log_info "Installed config (overwritten if existed): $target"
         done
     fi
 
@@ -104,7 +106,7 @@ ensure_config() {
             # Only install example if real config not installed
             if [[ ! -f "$target" ]]; then
                 cp "$example" "$target"
-                log "Installed example config: $target"
+                log_info "Installed example config: $target"
             fi
         done
     fi
@@ -127,23 +129,16 @@ ensure_config() {
         for cfg in "${volume_configs[@]}"; do
             local target="$etc_dir/volumes.d/$(basename "$cfg")"
             cp -f "$cfg" "$target"
-            log "Installed volume config (overwritten if existed): $target"
+            log_info "Installed volume config (overwritten if existed): $target"
         done
     fi
 
     if [[ -f "$volume_example" && ! -f "$volume_example_target" ]]; then
         cp "$volume_example" "$volume_example_target"
-        log "Installed example volume config: $volume_example_target"
+        log_info "Installed example volume config: $volume_example_target"
     fi
 
     shopt -u nullglob
-}
-
-ensure_log_dir() {
-    local log_dir="/var/log/btrfs-management"
-    local log_file="$log_dir/install.log"
-
-    mkdir -p "$log_dir"
 }
 
 make_sh_executable() {
@@ -178,9 +173,9 @@ main() {
     local install_dir="${1:-/opt/btrfs-management}"
     install_dir="$(readlink -f "$install_dir" 2>/dev/null || echo "$install_dir")"
 
-    log "Installing BTRFS Management"
-    log "Project root: $script_dir"
-    log "Install destination: $install_dir"
+    log_info "Installing BTRFS Management"
+    log_info "Project root: $script_dir"
+    log_info "Install destination: $install_dir"
 
     safe_copy_project "$script_dir" "$install_dir"
 
@@ -190,9 +185,8 @@ main() {
 
     ensure_config "$install_dir"
     make_sh_executable "$install_dir"
-    ensure_log_dir
-
-    log "Installation completed successfully."
+    
+    log_info "Installation completed successfully."
 }
 
 main "$@"
