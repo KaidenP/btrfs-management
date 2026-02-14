@@ -39,7 +39,7 @@ cleanup() {
         rm -f -- "$TMP_FILE" || true
     fi
 }
-trap cleanup EXIT
+add_exit_trap cleanup
 
 # ------------------------------------------------------------------
 # Email Handling
