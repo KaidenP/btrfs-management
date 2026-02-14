@@ -63,6 +63,10 @@ Vagrant.configure("2") do |config|
   config.vm.guest = :ubuntu
   config.vm.communicator = "ssh"
 
+  if Vagrant.has_plugin?("vagrant-timezone")
+    config.timezone.value = :host
+  end
+
   config.vm.provision "shell", inline: <<-SHELL
     bash /vagrant/install.sh
   SHELL
