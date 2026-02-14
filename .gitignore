@@ -1,2 +1,3 @@
 .vagrant
+smbcredentials.yaml
 conf/**/*.config
